@@ -17,7 +17,7 @@ nodeRegistration:
   criSocket: /var/run/dockershim.sock
 {% endif %}
   kubeletExtraArgs:
-{% if provider_enabled == true %}
+{% if provider_enabled %}
     cloud-provider: "vsphere"
 {% endif %}
 {% if kubelet_feature_gates is defined %}

@@ -96,7 +96,7 @@ data:
       entryPoint = "api"
     [ping]
       entryPoint = "api"
-{% if acme_enabled == true and acme_email != "" %}
+{% if acme_enabled and acme_email != "" %}
     [acme]
     email = "{{ acme_email }}"
     storage = "acme/acme.json"

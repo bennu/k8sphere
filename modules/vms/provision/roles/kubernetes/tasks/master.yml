@@ -50,10 +50,6 @@
   when: control_plane_pull.rc == 0
   ignore_errors: true
 
-# - fail:
-#     msg: "kubernetes: {{ kubeadm_init.stderr }}"
-#   when: kubeadm_init.rc != 0
-
 ###
 # Copy manifests
 ###

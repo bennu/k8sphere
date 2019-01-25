@@ -18,7 +18,7 @@ nodeRegistration:
   criSocket: /var/run/dockershim.sock
 {% endif %}
   kubeletExtraArgs:
-{% if provider_enabled == true %}
+{% if provider_enabled %}
     cloud-provider: "vsphere"
     cloud-config: "/etc/kubernetes/cloud-provider"
 {% endif %}
@@ -32,11 +32,11 @@ nodeRegistration:
 ---
 apiServer:
   certSANs:
-  {{ api_server_cert_sans | to_nice_yaml }}
+  {{ api_server_cert_sans | to_nice_yaml | indent 2 }}
   extraArgs:
     allow-privileged: "true"
     authorization-mode: "Node,RBAC"
-{% if provider_enabled == true %}
+{% if provider_enabled %}
     cloud-provider: "vsphere"
     cloud-config: "/etc/kubernetes/cloud-provider"
 {% endif %}
@@ -45,7 +45,7 @@ apiServer:
     feature-gates: "{{ api_server_feature_gates }}"
 {% endif %}
     runtime-config: "api/all=true"
-{% if provider_enabled == true %}
+{% if provider_enabled %}
   extraVolumes:
     - name: "cloud-provider"
       hostPath: "/etc/kubernetes/cloud-provider"
@@ -58,7 +58,7 @@ clusterName: {{ cluster_name }}
 controlPlaneEndpoint: "{{ ansible_default_ipv4.address }}:6443"
 controllerManager:
   extraArgs:
-{% if provider_enabled == true %}
+{% if provider_enabled %}
     cloud-provider: "vsphere"
     cloud-config: "/etc/kubernetes/cloud-provider"
 {% endif %}
@@ -68,7 +68,7 @@ controllerManager:
     horizontal-pod-autoscaler-use-rest-clients: "true"
     horizontal-pod-autoscaler-sync-period: "10s"
     node-monitor-grace-period: "10s"
-{% if provider_enabled == true %}
+{% if provider_enabled %}
   extraVolumes:
     - name: "cloud-provider"
       hostPath: "/etc/kubernetes/cloud-provider"

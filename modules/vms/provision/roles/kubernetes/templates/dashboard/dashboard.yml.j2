@@ -167,6 +167,7 @@ spec:
       targetPort: 8443
   selector:
     k8s-app: kubernetes-dashboard
+{% if ingress_enabled %}
 ---
 apiVersion: extensions/v1beta1
 kind: Ingress
@@ -174,8 +175,13 @@ metadata:
   name: kubernetes-dashboard
   namespace: kube-system
   annotations:
+{% if ingress_controller == 'traefik' %}
     kubernetes.io/ingress.class: traefik
     traefik.frontend.rule.type: PathPrefixStrip
+{% endif %}
+{% if ingress_controller == 'nginx' %}
+    kubernetes.io/ingress.class: nginx
+{% endif %}
 spec:
   rules:
   - http:
@@ -184,3 +190,4 @@ spec:
         backend:
           serviceName: kubernetes-dashboard
           servicePort: 443
+{% endif %}
