@@ -1,0 +1,201 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: traefik-ingress-controller
+  namespace: kube-system
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: traefik-ingress-controller
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - services
+      - endpoints
+      - secrets
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - extensions
+    resources:
+      - ingresses
+    verbs:
+      - get
+      - list
+      - watch
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: traefik-ingress-controller
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: traefik-ingress-controller
+subjects:
+- kind: ServiceAccount
+  name: traefik-ingress-controller
+  namespace: kube-system
+---
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: traefik-cfg
+  namespace: kube-system
+  labels:
+    app: traefik
+data:
+  traefik.toml: |
+    logLevel = "DEBUG"
+    debug = true
+    checkNewVersion = true
+    ProvidersThrottleDuration = "5s"
+    MaxIdleConnsPerHost = 200
+    InsecureSkipVerify = true
+    defaultEntryPoints = ["http", "https"]
+    [lifeCycle]
+    requestAcceptGraceTimeout = "10s"
+    graceTimeOut = "10s"
+    [traefikLog]
+    filePath = "log/traefik.log"
+    format = "json"
+    [accessLog]
+    filePath = "log/access.log"
+    format = "json"
+    [retry]
+    attempts = 3
+    [healthcheck]
+    interval = "30s"
+    [entryPoints]
+      [entryPoints.http]
+      address = ":80"
+      compress = true
+      [entryPoints.https]
+      address = ":443"
+        [entryPoints.https.tls]
+      [entryPoints.api]
+        address=":8080"
+    [api]
+      entryPoint = "api"
+      dashboard = true
+      debug = true
+    [api.statistics]
+      RecentErrors = 10
+    [metrics]
+      [metrics.statistics]
+        recentErrors = 10
+      [metrics.prometheus]
+        entryPoint = "api"
+        buckets = [0.1,0.3,1.2,5.0]
+    [rest]
+      entryPoint = "api"
+    [ping]
+      entryPoint = "api"
+{% if acme_enabled == true and acme_email != "" %}
+    [acme]
+    email = "{{ acme_email }}"
+    storage = "acme/acme.json"
+    entryPoint = "https"
+    OnHostRule = true
+    acmeLogging = true
+      [acme.httpChallenge]
+      entryPoint = "http"
+{% if acme_dns != "" %}
+      [acme.dnsChallenge]
+      provider = "{{ acme_dns }}"
+      delayDontCheckDNS = 0
+{% endif %}
+{% endif %}
+    # Enable the kubernetes integration
+    [kubernetes]
+---
+kind: Deployment
+apiVersion: extensions/v1beta1
+metadata:
+  name: traefik-ingress-controller
+  namespace: kube-system
+  labels:
+    k8s-app: traefik-ingress-lb
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      k8s-app: traefik-ingress-lb
+  template:
+    metadata:
+      labels:
+        k8s-app: traefik-ingress-lb
+        name: traefik-ingress-lb
+{% if cri_runtime == 'kata-containerd' %}
+      # annotations:
+      #   io.kubernetes.cri.untrusted-workload: "true"
+{% endif %}
+    spec:
+{% if cri_runtime == 'kata-containerd' %}
+      runtimeClassName: kata
+{% endif %}
+      # nodeSelector:
+      #   ingress-controller: "true"
+      serviceAccountName: traefik-ingress-controller
+      terminationGracePeriodSeconds: 60
+      containers:
+      - image: traefik:1.7.3-alpine
+        name: traefik-ingress-lb
+        ports:
+        - name: http
+          containerPort: 80
+        - name: https
+          containerPort: 443
+        - name: dashboard
+          containerPort: 8080
+        args:
+        - --configfile=/etc/traefik/traefik.toml
+        volumeMounts:
+        - name: traefik-cfg
+          mountPath: /etc/traefik/
+      volumes:
+      - name: traefik-cfg
+        configMap:
+          name: traefik-cfg
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: traefik-ingress
+  namespace: kube-system
+spec:
+  selector:
+    k8s-app: traefik-ingress-lb
+  ports:
+    - protocol: TCP
+      port: 80
+      name: http
+    - protocol: TCP
+      port: 443
+      name: https
+    - protocol: TCP
+      port: 8080
+      name: dashboard
+  type: LoadBalancer
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: traefik-ingress
+  namespace: kube-system
+  annotations:
+    kubernetes.io/ingress.class: traefik
+    traefik.frontend.rule.type: PathPrefixStrip
+spec:
+  rules:
+  - http:
+      paths:
+      - path: /traefik
+        backend:
+          serviceName: traefik-ingress
+          servicePort: 8080

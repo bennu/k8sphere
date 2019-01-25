@@ -1,0 +1,12 @@
+---
+- name: Kubernetes Bootstrap
+  hosts: localhost
+  connection: local
+  become: true
+  vars:
+    - role: "{{ lookup('env', 'SERVICE') }}"
+    - type: "{{ lookup('env', 'TYPE') }}"
+  roles:
+    - kubernetes
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf

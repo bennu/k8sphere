@@ -1,0 +1,210 @@
+---
+- name: Create config dirs
+  file:
+    path: "{{ item }}"
+    state: directory
+    mode: 755
+    group: root
+    owner: root
+  with_items:
+    - ["{{ master_config_dir }}","{{ dashboard_dir }}","{{ ingress_dir }}","{{ network_plugin_dir }}","{{ metrics_server_dir }}","{{ rbac_dir }}","{{ storage_dir }}","{{ rook_storage_dir }}","{{ vsphere_storage_dir }}","{{ local_storage_dir }}","{{ nfs_storage_dir }}","{{ metallb_dir }}","{{ runtimes_dir }}"]
+
+- name: Generate random init token
+  shell: kubeadm token generate
+  args:
+    warn: false
+  register: init_random_token_command
+
+- name: Set control plane random token
+  set_fact:
+    init_random_token: "{{ init_random_token_command.stdout }}"
+
+- name: Render kubernetes master configuration
+  template:
+    src: kubeadm.yml.j2
+    dest: "{{ master_config_file }}"
+
+- name: Pre pull control plane - docker
+  shell: kubeadm config images pull --kubernetes-version "{{ kubernetes_version }}" -v 7
+  args:
+    warn: false
+  register: control_plane_pull
+  when:
+    - cri_runtime == 'docker'
+
+- name: Pre pull control plane - containerd
+  shell: kubeadm config images pull --kubernetes-version "{{ kubernetes_version }}" --cri-socket /var/run/containerd/containerd.sock -v 7
+  args:
+    warn: false
+  register: control_plane_pull
+  when: cri_runtime == 'containerd' or cri_runtime == 'kata-containerd'
+
+- name: Init kubernetes master
+  shell: |
+    # source /etc/environment
+    . /etc/environment
+    kubeadm init --config "{{ master_config_file }}" -v 7
+  args:
+    warn: false
+  register: kubeadm_init
+  when: control_plane_pull.rc == 0
+  ignore_errors: true
+
+# - fail:
+#     msg: "kubernetes: {{ kubeadm_init.stderr }}"
+#   when: kubeadm_init.rc != 0
+
+###
+# Copy manifests
+###
+
+- name: Runtimes configuration
+  copy:
+    src: "runtimes/{{ item }}"
+    dest: "{{ runtimes_dir }}/{{ item }}"
+  when: cri_runtime == 'kata-containerd'
+  with_items:
+    - crdruntimes.yml
+    - runtimeclasses.yml
+
+- name: Networking layer manifest
+  template:
+    src: "network/calico/{{ item }}"
+    dest: "{{ network_plugin_dir }}/calico.yml"
+  with_items:
+    - calico.yml.j2
+  when:
+    - network_plugin == 'calico'
+    # - kubeadm_init.rc == 0
+
+- name: Metallb manifests
+  template:
+    src: "metallb/{{ item }}"
+    dest: "{{ metallb_dir }}/metallb.yml"
+  with_items:
+    - metallb.yml.j2
+  when: metallb_enabled and metallb_ip_range != ""
+
+- name: Ingress controller manifests
+  template:
+    src: "ingress/{{ item }}"
+    dest: "{{ ingress_dir }}/traefik.yml"
+  with_items:
+    - traefik.yml.j2
+  when: ingress_enabled and ingress_controller == 'traefik'
+
+- name: kubernetes dashboard manifest
+  template:
+    src: "dashboard/{{ item }}"
+    dest: "{{ dashboard_dir }}/dashboard.yml"
+  with_items:
+    - dashboard.yml.j2
+  when: dashboard_enabled
+
+- name: Metrics server manifests
+  template:
+    src: "metrics-server/{{ item }}"
+    dest: "{{ metrics_server_dir }}/metrics-server.yml"
+  with_items:
+    - metrics-server.yml.j2
+  when: metrics_enabled
+
+# - name: Local storage manifest
+#   copy:
+#     src: "storage/{{ item }}"
+#     dest: "{{ storage_dir }}/{{ item }}"
+#   with_items:
+#     - local.yml
+
+# - name: Rook CephFS Storage manifests
+#   copy:
+#     src: "storage/rook/{{ item }}"
+#     dest: "{{ rook_storage_dir }}/{{ item }}"
+#   with_items:
+#     - 1-ceph-operator.yml
+#     - 2-ceph-cluster.yml
+#     - 3-cluster.yml
+
+###
+# Deploy services
+###
+
+- name: Deploy runtimes configs
+  shell: kubectl apply -f "{{ runtimes_dir }}/{{ item }}" && sleep 3
+  args:
+    warn: false
+  with_items:
+    - crdruntimes.yml
+    - runtimeclasses.yml
+
+- name: Generate encryption passphrase for Weave Net
+  shell: kubectl create secret -n kube-system generic weave-passwd --from-literal=weave-passwd=$(hexdump -n 16 -e '4/4 "%08x" 1 "\n"' /dev/random)
+  args:
+    warn: false
+  when:
+    - kubeadm_init.rc == 0
+    - network_plugin == 'weave'
+
+- name: Deploy network layer
+  shell: kubectl apply -n kube-system -f "https://cloud.weave.works/k8s/net?k8s-version=$(kubectl version | base64 | tr -d '\n')&password-secret=weave-passwd"
+  args:
+    warn: false
+  when:
+    - kubeadm_init.rc == 0
+    - network_plugin == 'weave'
+
+- name: Deploy network layer
+  shell: kubectl apply -f "{{ network_plugin_dir }}/"
+  args:
+    warn: false
+  when:
+    - kubeadm_init.rc == 0
+    - network_plugin == 'calico'
+
+# - name: Deploy Weave Scope
+#   shell: kubectl apply -f "{{ network_plugin_dir }}/weave-scope.yml"
+#   args:
+#     warn: false
+#   when: kubeadm_init.rc == 0
+
+- name: Deploy Metallb
+  # shell: kubectl apply -f https://raw.githubusercontent.com/google/metallb/v0.7.3/manifests/metallb.yaml
+  shell: kubectl apply -f "{{ metallb_dir }}/"
+  args:
+    warn: false
+  when:
+    - kubeadm_init.rc == 0
+    - metallb_enabled and metallb_ip_range is defined
+
+- name: Deploy traefik ingress controller
+  shell: kubectl apply -f "{{ ingress_dir }}/"
+  args:
+    warn: false
+  when: ingress_enabled and ingress_controller == 'traefik'
+
+- name: Deploy dashboard
+  shell: kubectl apply -f "{{ dashboard_dir }}/"
+  args:
+    warn: false
+  when: dashboard_enabled
+
+- name: Deploy metrics server
+  shell: kubectl apply -f "{{ metrics_server_dir }}/"
+  args:
+    warn: false
+  when: metrics_enabled
+
+# - name: Deploy local Storage
+#   shell: kubectl apply -f "{{ storage_dir }}/local.yml"
+#   args:
+#     warn: false
+
+# - name: Deploy Rook CephFS cluster
+#   shell: kubectl apply -f "{{ rook_storage_dir }}/"
+#   args:
+#     warn: false
+
+# - name: Deploy helm
+#   shell: helm init --service-account ulm0 --wait --override metadata.annotations."io\.kubernetes\.cri\.untrusted-workload"="true"
+#   args:
+#     warn: false

@@ -1,0 +1,83 @@
+control_plane_dir: /etc/kubernetes
+cp_pki_dir: "{{ control_plane_dir }}/pki"
+dashboard_dir: "{{ master_config_dir }}/dashboard"
+ingress_dir: "{{ master_config_dir }}/ingress"
+local_storage_dir: "{{ storage_dir }}/local"
+master_config_dir: /root/.kubernetes
+master_config_file: "{{ master_config_dir }}/master.yml"
+metallb_dir: "{{ master_config_dir }}/metallb"
+metrics_server_dir: "{{ master_config_dir }}/metrics-server"
+network_plugin_dir: "{{ master_config_dir }}/network"
+nfs_storage_dir: "{{ storage_dir }}/nfs"
+rbac_dir: "{{ master_config_dir }}/rbac"
+rook_storage_dir: "{{ storage_dir }}/rook"
+runtimes_dir: "{{ master_config_dir }}/runtimes"
+storage_dir: "{{ master_config_dir }}/storage-class"
+vsphere_storage_dir: "{{ storage_dir }}/vsphere"
+kubelet_mods:
+  - ip_vs 
+  - ip_vs_rr 
+  - ip_vs_wrr 
+  - ip_vs_sh 
+  - nf_conntrack_ipv4
+pki_files:
+  - ca.crt
+  - ca.key
+  - sa.key
+  - sa.pub
+  - front-proxy-ca.crt
+  - front-proxy-ca.key
+  - etcd/ca.crt
+  - etcd/ca.key
+netbox_host: ""
+netbox_token: ""
+kubernetes_version: v1.12.0
+api_server_cert_sans:
+  - cluster.local
+cluster_name: ""
+cluster_cidr: 10.244.0.0/16
+pod_subnet: 10.245.0.0/24
+service_subnet: 10.246.0.0/24
+cluster_dns:
+  - 10.246.0.10
+cri_socket: /var/run/dockershim.sock
+dns_domain: cluster.local
+cluster_domain: cluster.local
+# wether to join the cluster as a master or not
+join_control_plane: "false"
+# feature gates for k8s components
+api_server_feature_gates: ""
+controller_manager_feature_gates: ""
+kubelet_feature_gates: ""
+scheduler_feature_gates: ""
+first_cp_node_ip: ""
+first_cp_node_password: ""
+# cloud provider
+provider_enabled: false
+
+# can be docker, containerd, kata-containerd
+cri_runtime: ""
+network_plugin: "calico"
+calico_etcd_ip: "10.246.0.20"
+
+# addons
+metallb_enabled: false
+metallb_ip_range: ""
+
+# ingress
+ingress_enabled: false
+ingress_controller: ""
+
+# traefik
+acme_enabled: false
+acme_email: ""
+acme_dns: ""
+
+# dashboard
+dashboard_enabled: false
+
+# metrics
+metrics_enabled: false
+
+use_hyperkube: "false"
+image_repository: "k8s.gcr.io"

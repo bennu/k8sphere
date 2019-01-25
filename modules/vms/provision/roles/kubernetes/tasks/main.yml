@@ -1,0 +1,9 @@
+---
+
+- include: master.yml
+  when: role == 'kubernetes' and type == 'master'
+
+- include: worker.yml
+  when: role == 'kubernetes' and type == 'worker'
+
+...

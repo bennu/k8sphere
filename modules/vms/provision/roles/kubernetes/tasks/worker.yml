@@ -1,0 +1,41 @@
+---
+- name: Get join information
+  shell: sshpass -p {{ first_cp_node_password }} ssh -o StrictHostKeyChecking=no root@{{ first_cp_node_ip }} kubeadm token create --print-join-command
+  args:
+    warn: false
+  register: join_info
+
+- name: Get join token
+  shell: echo "{{ join_info.stdout }}" | sed "s|kubeadm join {{ first_cp_node_ip }}:6443 ||g" | sed "s|--token ||g" | sed "s|--discovery-token-ca-cert-hash||g" | awk '{print $1}'
+  args:
+    warn: false
+  register: kubeadm_token_cmd
+
+- name: Set control plane token
+  set_fact:
+    kubeadm_token: "{{ kubeadm_token_cmd.stdout }}"
+
+- name: Get discovery token CA cert hash
+  shell: |
+    echo "{{ join_info.stdout }}" | sed "s|kubeadm join {{ first_cp_node_ip }}:6443 ||g" | sed "s|--token ||g" | sed "s|--discovery-token-ca-cert-hash||g" | awk '{print $2}'
+  args:
+    warn: false
+  register: kubeadm_hash_cmd
+
+- name: Set control plane hash
+  set_fact:
+    kubeadm_hash: "{{ kubeadm_hash_cmd.stdout }}"
+
+- name: Set control plane endpoint
+  set_fact:
+    control_plane_endpoint: "{{ first_cp_node_ip }}"
+
+- name: Render join config
+  template:
+    src: join-config.yml.j2
+    dest: /root/.join-config.yml
+
+- name: Join the cluster
+  shell: kubeadm join --config /root/.join-config.yml -v 7
+  args:
+    warn: false

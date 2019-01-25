@@ -1,0 +1,26 @@
+apiVersion: kubeadm.k8s.io/v1beta1
+caCertPath: /etc/kubernetes/pki/ca.crt
+discovery:
+  bootstrapToken:
+    apiServerEndpoint: {{ control_plane_endpoint }}:6443
+    token: {{ kubeadm_token }}
+    unsafeSkipCAVerification: true
+  timeout: 5m0s
+  tlsBootstrapToken: {{ kubeadm_token }}
+# discoveryTokenCACertHashes:
+# - {{ kubeadm_hash }}
+kind: JoinConfiguration
+nodeRegistration:
+{% if cri_runtime == 'containerd' or cri_runtime == 'kata-containerd' %}
+  criSocket: /var/run/containerd/containerd.sock
+{% elif cri_runtime == 'docker' %}
+  criSocket: /var/run/dockershim.sock
+{% endif %}
+  kubeletExtraArgs:
+{% if provider_enabled == true %}
+    cloud-provider: "vsphere"
+{% endif %}
+{% if kubelet_feature_gates is defined %}
+    feature-gates: "{{ kubelet_feature_gates }}"
+{% endif %}
+  name: {{ ansible_hostname }}
