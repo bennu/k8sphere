@@ -60,9 +60,9 @@ module "vms" {
 
   # settings
 
-  kubernetes_version = "${var.kubernetes_version}"
-  control_plane_port = "${var.control_plane_port}"
-  # api_server_certs_sans            = "${var.api_server_certs_sans}"
+  kubernetes_version               = "${var.kubernetes_version}"
+  control_plane_port               = "${var.control_plane_port}"
+  api_server_certs_sans            = "${var.api_server_certs_sans}"
   api_server_feature_gates         = "${var.api_server_feature_gates}"
   controller_manager_feature_gates = "${var.controller_manager_feature_gates}"
   kubelet_feature_gates            = "${var.kubelet_feature_gates}"

@@ -40,15 +40,10 @@ variable "workers" {
 }
 
 # Kubernetes ansible vars
-
 variable "kubernetes_version" {}
 
 variable "control_plane_port" {}
-
-# variable "api_server_certs_sans" {
-#   type = "list"
-# }
-
+variable "api_server_certs_sans" {}
 variable "api_server_feature_gates" {}
 variable "controller_manager_feature_gates" {}
 variable "kubelet_feature_gates" {}
