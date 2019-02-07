@@ -10,7 +10,7 @@ bootstrapTokens:
 kind: InitConfiguration
 localAPIEndpoint:
   advertiseAddress: {{ ansible_default_ipv4.address }}
-  bindPort: 6443
+  bindPort: {{ control_plane_port }}
 nodeRegistration:
 {% if cri_runtime == 'containerd' or cri_runtime == 'kata-containerd' %}
   criSocket: /var/run/containerd/containerd.sock
@@ -18,7 +18,7 @@ nodeRegistration:
   criSocket: /var/run/dockershim.sock
 {% endif %}
   kubeletExtraArgs:
-{% if provider_enabled %}
+{% if provider_enabled == '1' %}
     cloud-provider: "vsphere"
     cloud-config: "/etc/kubernetes/cloud-provider"
 {% endif %}
@@ -32,11 +32,11 @@ nodeRegistration:
 ---
 apiServer:
   certSANs:
-  {{ api_server_cert_sans | to_nice_yaml | indent 2 }}
+  {{ api_server_cert_sans | to_nice_yaml }}
   extraArgs:
     allow-privileged: "true"
     authorization-mode: "Node,RBAC"
-{% if provider_enabled %}
+{% if provider_enabled == '1' %}
     cloud-provider: "vsphere"
     cloud-config: "/etc/kubernetes/cloud-provider"
 {% endif %}
@@ -45,7 +45,7 @@ apiServer:
     feature-gates: "{{ api_server_feature_gates }}"
 {% endif %}
     runtime-config: "api/all=true"
-{% if provider_enabled %}
+{% if provider_enabled == '1' %}
   extraVolumes:
     - name: "cloud-provider"
       hostPath: "/etc/kubernetes/cloud-provider"
@@ -55,10 +55,10 @@ apiServer:
 apiVersion: kubeadm.k8s.io/v1beta1
 certificatesDir: /etc/kubernetes/pki
 clusterName: {{ cluster_name }}
-controlPlaneEndpoint: "{{ ansible_default_ipv4.address }}:6443"
+controlPlaneEndpoint: "{{ ansible_default_ipv4.address }}:{{ control_plane_port }}"
 controllerManager:
   extraArgs:
-{% if provider_enabled %}
+{% if provider_enabled == '1' %}
     cloud-provider: "vsphere"
     cloud-config: "/etc/kubernetes/cloud-provider"
 {% endif %}
@@ -68,7 +68,7 @@ controllerManager:
     horizontal-pod-autoscaler-use-rest-clients: "true"
     horizontal-pod-autoscaler-sync-period: "10s"
     node-monitor-grace-period: "10s"
-{% if provider_enabled %}
+{% if provider_enabled == '1' %}
   extraVolumes:
     - name: "cloud-provider"
       hostPath: "/etc/kubernetes/cloud-provider"

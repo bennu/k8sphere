@@ -6,7 +6,7 @@
   register: join_info
 
 - name: Get join token
-  shell: echo "{{ join_info.stdout }}" | sed "s|kubeadm join {{ first_cp_node_ip }}:6443 ||g" | sed "s|--token ||g" | sed "s|--discovery-token-ca-cert-hash||g" | awk '{print $1}'
+  shell: echo "{{ join_info.stdout }}" | sed "s|kubeadm join {{ first_cp_node_ip }}:{{ control_plane_port }} ||g" | sed "s|--token ||g" | sed "s|--discovery-token-ca-cert-hash||g" | awk '{print $1}'
   args:
     warn: false
   register: kubeadm_token_cmd
@@ -17,7 +17,7 @@
 
 - name: Get discovery token CA cert hash
   shell: |
-    echo "{{ join_info.stdout }}" | sed "s|kubeadm join {{ first_cp_node_ip }}:6443 ||g" | sed "s|--token ||g" | sed "s|--discovery-token-ca-cert-hash||g" | awk '{print $2}'
+    echo "{{ join_info.stdout }}" | sed "s|kubeadm join {{ first_cp_node_ip }}:{{ control_plane_port }} ||g" | sed "s|--token ||g" | sed "s|--discovery-token-ca-cert-hash||g" | awk '{print $2}'
   args:
     warn: false
   register: kubeadm_hash_cmd

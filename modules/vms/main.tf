@@ -73,6 +73,8 @@ resource "vsphere_virtual_machine" "masters" {
       extra_vars {
         kubernetes_version = "${var.kubernetes_version}"
 
+        control_plane_port = "${var.control_plane_port}"
+
         # api_server_certs_sans            = "${var.api_server_certs_sans}"
         api_server_feature_gates         = "${var.api_server_feature_gates}"
         controller_manager_feature_gates = "${var.controller_manager_feature_gates}"
@@ -95,15 +97,17 @@ resource "vsphere_virtual_machine" "masters" {
 
         # addons
 
-        metallb_enabled    = "${var.metallb_enabled}"
-        metallb_ip_range   = "${var.metallb_ip_range}"
-        ingress_enabled    = "${var.ingress_enabled}"
-        ingress_controller = "${var.ingress_controller}"
-        acme_enabled       = "${var.acme_enabled}"
-        acme_email         = "${var.acme_email}"
-        acme_dns           = "${var.acme_dns}"
-        dashboard_enabled  = "${var.dashboard_enabled}"
-        metrics_enabled    = "${var.metrics_enabled}"
+        metallb_enabled             = "${var.metallb_enabled}"
+        metallb_ip_range            = "${var.metallb_ip_range}"
+        ingress_enabled             = "${var.ingress_enabled}"
+        ingress_controller          = "${var.ingress_controller}"
+        ingress_controller_replicas = "${var.ingress_controller_replicas}"
+        acme_enabled                = "${var.acme_enabled}"
+        acme_email                  = "${var.acme_email}"
+        acme_dns                    = "${var.acme_dns}"
+        dashboard_enabled           = "${var.dashboard_enabled}"
+        metrics_enabled             = "${var.metrics_enabled}"
+        rook_enabled                = "${var.rook_enabled}"
       }
 
       diff    = true
@@ -191,6 +195,7 @@ resource "vsphere_virtual_machine" "workers" {
       }
 
       extra_vars {
+        control_plane_port     = "${var.control_plane_port}"
         kubelet_feature_gates  = "${var.kubelet_feature_gates}"
         cri_runtime            = "${var.cri_runtime}"
         cluster_name           = "${var.cluster_name}"
@@ -206,5 +211,16 @@ resource "vsphere_virtual_machine" "workers" {
       skip_install = true
       use_sudo     = false
     }
+  }
+}
+
+data "external" "kubeconfig" {
+  depends_on = ["vsphere_virtual_machine.masters"]
+  program    = ["bash", "${path.module}/utils/kubeconfig"]
+
+  query = {
+    control_plane_node = "${element(values(var.masters),0)}"
+    user               = "${var.vm_user}"
+    password           = "${var.vm_password}"
   }
 }

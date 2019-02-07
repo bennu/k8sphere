@@ -122,7 +122,7 @@ metadata:
   labels:
     k8s-app: traefik-ingress-lb
 spec:
-  replicas: 1
+  replicas: {{ ingress_controller_replicas }}
   selector:
     matchLabels:
       k8s-app: traefik-ingress-lb
@@ -144,7 +144,7 @@ spec:
       serviceAccountName: traefik-ingress-controller
       terminationGracePeriodSeconds: 60
       containers:
-      - image: traefik:1.7.3-alpine
+      - image: traefik:alpine
         name: traefik-ingress-lb
         ports:
         - name: http
