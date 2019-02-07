@@ -39,9 +39,9 @@ variable "master_disk_size" {
   # Defaults cannot contain interpolations ATM
   # https://github.com/hashicorp/terraform/issues/14343
   # default = "${module.vsphere.template_disk_size}"
-  description = "Disk size in GBs for master VMs to be created. Cannot be less than VM template used"
+  description = "Disk size in GBs for master VMs to be created."
 
-  default = 10
+  default = ""
 }
 
 variable "masters" {
@@ -108,9 +108,9 @@ variable "worker_disk_size" {
   # Defaults cannot contain interpolations ATM
   # https://github.com/hashicorp/terraform/issues/14343
   # default = "${module.vsphere.template_disk_size}"
-  description = "Disk size in GBs for worker VMs to be created. Cannot be less than VM template used"
+  description = "Disk size in GBs for worker VMs to be created."
 
-  default = 10
+  default = ""
 }
 
 variable "workers" {
@@ -118,11 +118,22 @@ variable "workers" {
   type        = "map"
 }
 
+locals {
+  disk_size        = "${module.vsphere.template_disk_size}"
+  master_disk_size = "${var.master_disk_size != "" ? var.master_disk_size : local.disk_size}"
+  worker_disk_size = "${var.worker_disk_size != "" ? var.worker_disk_size : local.disk_size}"
+}
+
 # Kubernetes ansible vars
 
 variable "kubernetes_version" {
   description = "Kubernetes version to deploy on the cluster"
   default     = "stable"
+}
+
+variable "control_plane_port" {
+  description = "Port to bind the kubernetes API Server"
+  default     = 6443
 }
 
 # variable "api_server_certs_sans" {
@@ -135,22 +146,22 @@ variable "kubernetes_version" {
 
 variable "api_server_feature_gates" {
   description = "API server feature gates to be enabled"
-  default = ""
+  default     = ""
 }
 
 variable "controller_manager_feature_gates" {
   description = "Controller manager feature gates to be enabled"
-  default = ""
+  default     = ""
 }
 
 variable "kubelet_feature_gates" {
   description = "Kubelet feature gates to be enabled"
-  default = ""
+  default     = ""
 }
 
 variable "scheduler_feature_gates" {
   description = "Scheduler feature gates to be enabled"
-  default = ""
+  default     = ""
 }
 
 variable "cri_runtime" {
@@ -235,6 +246,11 @@ variable "ingress_controller" {
   default = "traefik"
 }
 
+variable "ingress_controller_replicas" {
+  description = "Number of replicas for ingress controller"
+  default     = 1
+}
+
 variable "acme_enabled" {
   description = "Enable acme, in case traefik is deployed"
   default     = false
@@ -257,5 +273,10 @@ variable "dashboard_enabled" {
 
 variable "metrics_enabled" {
   description = "Deploy metrics server"
+  default     = false
+}
+
+variable "rook_enabled" {
+  description = "Deploy rook"
   default     = false
 }

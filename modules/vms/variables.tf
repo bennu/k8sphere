@@ -43,6 +43,8 @@ variable "workers" {
 
 variable "kubernetes_version" {}
 
+variable "control_plane_port" {}
+
 # variable "api_server_certs_sans" {
 #   type = "list"
 # }
@@ -70,8 +72,10 @@ variable "metallb_enabled" {}
 variable "metallb_ip_range" {}
 variable "ingress_enabled" {}
 variable "ingress_controller" {}
+variable "ingress_controller_replicas" {}
 variable "acme_enabled" {}
 variable "acme_email" {}
 variable "acme_dns" {}
 variable "dashboard_enabled" {}
 variable "metrics_enabled" {}
+variable "rook_enabled" {}

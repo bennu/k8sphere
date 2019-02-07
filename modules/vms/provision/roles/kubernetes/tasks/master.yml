@@ -28,7 +28,6 @@
   shell: kubeadm config images pull --kubernetes-version "{{ kubernetes_version }}" -v 7
   args:
     warn: false
-  register: control_plane_pull
   when:
     - cri_runtime == 'docker'
 
@@ -36,19 +35,14 @@
   shell: kubeadm config images pull --kubernetes-version "{{ kubernetes_version }}" --cri-socket /var/run/containerd/containerd.sock -v 7
   args:
     warn: false
-  register: control_plane_pull
   when: cri_runtime == 'containerd' or cri_runtime == 'kata-containerd'
 
 - name: Init kubernetes master
   shell: |
-    # source /etc/environment
     . /etc/environment
     kubeadm init --config "{{ master_config_file }}" -v 7
   args:
     warn: false
-  register: kubeadm_init
-  when: control_plane_pull.rc == 0
-  ignore_errors: true
 
 ###
 # Copy manifests
@@ -71,7 +65,6 @@
     - calico.yml.j2
   when:
     - network_plugin == 'calico'
-    # - kubeadm_init.rc == 0
 
 - name: Metallb manifests
   template:
@@ -81,13 +74,21 @@
     - metallb.yml.j2
   when: metallb_enabled and metallb_ip_range != ""
 
-- name: Ingress controller manifests
+- name: Traefik ingress controller manifest
   template:
     src: "ingress/{{ item }}"
     dest: "{{ ingress_dir }}/traefik.yml"
   with_items:
     - traefik.yml.j2
   when: ingress_enabled and ingress_controller == 'traefik'
+
+- name: Nginx ingress controller manifest
+  template:
+    src: "ingress/{{ item }}"
+    dest: "{{ ingress_dir }}/nginx.yml"
+  with_items:
+    - nginx.yml.j2
+  when: ingress_enabled and ingress_controller == 'nginx'
 
 - name: kubernetes dashboard manifest
   template:
@@ -105,21 +106,21 @@
     - metrics-server.yml.j2
   when: metrics_enabled
 
-# - name: Local storage manifest
-#   copy:
-#     src: "storage/{{ item }}"
-#     dest: "{{ storage_dir }}/{{ item }}"
-#   with_items:
-#     - local.yml
+- name: Rook CephFS Storage manifests
+  template:
+    src: "storage/{{ item }}"
+    dest: "{{ rook_storage_dir }}/rook.yml"
+  with_items:
+    - rook.yml.j2
+  when: rook_enabled
 
-# - name: Rook CephFS Storage manifests
-#   copy:
-#     src: "storage/rook/{{ item }}"
-#     dest: "{{ rook_storage_dir }}/{{ item }}"
-#   with_items:
-#     - 1-ceph-operator.yml
-#     - 2-ceph-cluster.yml
-#     - 3-cluster.yml
+- name: StorageClass manifests
+  template:
+    src: "storage/{{ item }}"
+    dest: "{{ rook_storage_dir }}/storageclass.yml"
+  with_items:
+    - storageclass.yml.j2
+  when: rook_enabled
 
 ###
 # Deploy services
@@ -138,7 +139,6 @@
   args:
     warn: false
   when:
-    - kubeadm_init.rc == 0
     - network_plugin == 'weave'
 
 - name: Deploy network layer
@@ -146,7 +146,6 @@
   args:
     warn: false
   when:
-    - kubeadm_init.rc == 0
     - network_plugin == 'weave'
 
 - name: Deploy network layer
@@ -154,14 +153,7 @@
   args:
     warn: false
   when:
-    - kubeadm_init.rc == 0
     - network_plugin == 'calico'
-
-# - name: Deploy Weave Scope
-#   shell: kubectl apply -f "{{ network_plugin_dir }}/weave-scope.yml"
-#   args:
-#     warn: false
-#   when: kubeadm_init.rc == 0
 
 - name: Deploy Metallb
   # shell: kubectl apply -f https://raw.githubusercontent.com/google/metallb/v0.7.3/manifests/metallb.yaml
@@ -169,14 +161,13 @@
   args:
     warn: false
   when:
-    - kubeadm_init.rc == 0
-    - metallb_enabled and metallb_ip_range is defined
+    - metallb_enabled and metallb_ip_range != ""
 
-- name: Deploy traefik ingress controller
+- name: Deploy ingress controller
   shell: kubectl apply -f "{{ ingress_dir }}/"
   args:
     warn: false
-  when: ingress_enabled and ingress_controller == 'traefik'
+  when: ingress_enabled and (ingress_controller == 'traefik' or ingress_controller == 'nginx')
 
 - name: Deploy dashboard
   shell: kubectl apply -f "{{ dashboard_dir }}/"
@@ -190,15 +181,11 @@
     warn: false
   when: metrics_enabled
 
-# - name: Deploy local Storage
-#   shell: kubectl apply -f "{{ storage_dir }}/local.yml"
-#   args:
-#     warn: false
-
-# - name: Deploy Rook CephFS cluster
-#   shell: kubectl apply -f "{{ rook_storage_dir }}/"
-#   args:
-#     warn: false
+- name: Deploy Rook CephFS cluster
+  shell: kubectl apply -f "{{ rook_storage_dir }}/"
+  args:
+    warn: false
+  when: rook_enabled
 
 # - name: Deploy helm
 #   shell: helm init --service-account ulm0 --wait --override metadata.annotations."io\.kubernetes\.cri\.untrusted-workload"="true"

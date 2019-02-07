@@ -46,20 +46,22 @@ module "vms" {
   # kubernetes
   ##
 
+
   # nodes
 
   master_cpus      = "${var.master_cpus}"
-  master_disk_size = "${var.master_disk_size}"
+  master_disk_size = "${local.master_disk_size}"
   master_mem       = "${var.master_mem}"
   masters          = "${var.masters}"
   worker_cpus      = "${var.worker_cpus}"
-  worker_disk_size = "${var.worker_disk_size}"
+  worker_disk_size = "${local.worker_disk_size}"
   worker_mem       = "${var.worker_mem}"
   workers          = "${var.workers}"
 
   # settings
 
   kubernetes_version = "${var.kubernetes_version}"
+  control_plane_port = "${var.control_plane_port}"
   # api_server_certs_sans            = "${var.api_server_certs_sans}"
   api_server_feature_gates         = "${var.api_server_feature_gates}"
   controller_manager_feature_gates = "${var.controller_manager_feature_gates}"
@@ -80,13 +82,15 @@ module "vms" {
 
   # addons
 
-  metallb_enabled    = "${var.metallb_enabled}"
-  metallb_ip_range   = "${var.metallb_ip_range}"
-  ingress_enabled    = "${var.ingress_enabled}"
-  ingress_controller = "${var.ingress_controller}"
-  acme_enabled       = "${var.acme_enabled}"
-  acme_email         = "${var.acme_email}"
-  acme_dns           = "${var.acme_dns}"
-  dashboard_enabled  = "${var.dashboard_enabled}"
-  metrics_enabled    = "${var.metrics_enabled}"
+  metallb_enabled             = "${var.metallb_enabled}"
+  metallb_ip_range            = "${var.metallb_ip_range}"
+  ingress_enabled             = "${var.ingress_enabled}"
+  ingress_controller          = "${var.ingress_controller}"
+  ingress_controller_replicas = "${var.ingress_controller_replicas}"
+  acme_enabled                = "${var.acme_enabled}"
+  acme_email                  = "${var.acme_email}"
+  acme_dns                    = "${var.acme_dns}"
+  dashboard_enabled           = "${var.dashboard_enabled}"
+  metrics_enabled             = "${var.metrics_enabled}"
+  rook_enabled                = "${var.rook_enabled}"
 }

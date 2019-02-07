@@ -32,6 +32,7 @@ pki_files:
 netbox_host: ""
 netbox_token: ""
 kubernetes_version: v1.12.0
+control_plane_port: 6443
 api_server_cert_sans:
   - cluster.local
 cluster_name: ""
@@ -67,6 +68,7 @@ metallb_ip_range: ""
 # ingress
 ingress_enabled: false
 ingress_controller: ""
+ingress_controller_replicas: 1
 
 # traefik
 acme_enabled: false
