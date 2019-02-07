@@ -136,13 +136,9 @@ variable "control_plane_port" {
   default     = 6443
 }
 
-# variable "api_server_certs_sans" {
-#   type = "list"
-
-#   default = [
-#     "- cluster.local",
-#   ]
-# }
+variable "api_server_certs_sans" {
+  default = "cluster.local"
+}
 
 variable "api_server_feature_gates" {
   description = "API server feature gates to be enabled"

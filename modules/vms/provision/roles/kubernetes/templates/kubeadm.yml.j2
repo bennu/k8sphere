@@ -32,7 +32,10 @@ nodeRegistration:
 ---
 apiServer:
   certSANs:
-  {{ api_server_cert_sans | to_nice_yaml }}
+{% set certs_sans = api_server_certs_sans.split(',') %}
+{% for cert_san in certs_sans %}
+  - {{ cert_san }}
+{% endfor %}
   extraArgs:
     allow-privileged: "true"
     authorization-mode: "Node,RBAC"

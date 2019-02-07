@@ -33,8 +33,7 @@ netbox_host: ""
 netbox_token: ""
 kubernetes_version: v1.12.0
 control_plane_port: 6443
-api_server_cert_sans:
-  - cluster.local
+api_server_certs_sans: "cluster.local"
 cluster_name: ""
 cluster_cidr: 10.244.0.0/16
 pod_subnet: 10.245.0.0/24
